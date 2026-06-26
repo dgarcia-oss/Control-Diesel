@@ -1,0 +1,2000 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1, user-scalable=no">
+<title>Control de Diésel</title>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.1/chart.umd.js"></script>
+<style>
+  :root{
+    --bg:#0f1410;
+    --panel:#171d18;
+    --panel2:#1f261f;
+    --line:#2c352c;
+    --accent:#e8a33d;
+    --accent2:#5fae6a;
+    --text:#eef1ec;
+    --text-dim:#9aa39a;
+    --danger:#e2645a;
+    --radius:14px;
+  }
+  *{box-sizing:border-box;}
+  html,body{margin:0;padding:0;}
+  body{
+    font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,Helvetica,Arial,sans-serif;
+    background:var(--bg);
+    color:var(--text);
+    min-height:100vh;
+    -webkit-tap-highlight-color: transparent;
+  }
+  .app{max-width:480px;margin:0 auto;min-height:100vh;display:flex;flex-direction:column;}
+
+  /* Header */
+  header{
+    padding:18px 20px 14px;
+    display:flex;align-items:center;justify-content:space-between;
+    border-bottom:1px solid var(--line);
+    position:sticky;top:0;background:var(--bg);z-index:20;
+  }
+  .brand{display:flex;align-items:center;gap:10px;}
+  .brand-mark{
+    width:34px;height:34px;border-radius:9px;
+    background:linear-gradient(180deg,var(--accent2),#3f8a4c);
+    display:flex;align-items:center;justify-content:center;
+    font-weight:700;font-size:15px;color:#0f1410;
+    flex-shrink:0;
+  }
+  .brand-text h1{font-size:16px;font-weight:600;margin:0;letter-spacing:0.2px;}
+  .brand-text p{font-size:11.5px;color:var(--text-dim);margin:1px 0 0;}
+  .mode-switch{
+    display:flex;gap:4px;background:var(--panel);border:1px solid var(--line);
+    border-radius:999px;padding:3px;
+  }
+  .mode-switch button{
+    border:none;background:transparent;color:var(--text-dim);
+    font-size:12px;font-weight:600;padding:7px 12px;border-radius:999px;
+    cursor:pointer;transition:all .15s;
+  }
+  .mode-switch button.active{background:var(--accent2);color:#0f1410;}
+
+  main{flex:1;padding:18px 20px 100px;}
+
+  /* Tank summary card */
+  .tank-card{
+    background:var(--panel);border:1px solid var(--line);border-radius:var(--radius);
+    padding:16px 18px;margin-bottom:18px;
+    display:flex;align-items:center;justify-content:space-between;
+    gap:12px;
+  }
+  .tank-card .label{font-size:11.5px;color:var(--text-dim);text-transform:uppercase;letter-spacing:0.6px;margin-bottom:4px;}
+  .tank-card .value{font-size:26px;font-weight:700;}
+  .tank-card .unit{font-size:13px;color:var(--text-dim);font-weight:400;margin-left:4px;}
+  .tank-bar{width:100%;height:6px;border-radius:4px;background:#2c352c;overflow:hidden;margin-top:10px;}
+  .tank-bar-fill{height:100%;background:var(--accent2);border-radius:4px;transition:width .3s;}
+  .tank-bar-fill.low{background:var(--danger);}
+  .tank-icon{
+    width:46px;height:46px;border-radius:12px;background:var(--panel2);
+    display:flex;align-items:center;justify-content:center;font-size:22px;flex-shrink:0;
+  }
+
+  /* Section titles */
+  h2.section-title{
+    font-size:13px;font-weight:600;color:var(--text-dim);text-transform:uppercase;
+    letter-spacing:0.7px;margin:0 0 12px;
+  }
+
+  /* Form */
+  .card{
+    background:var(--panel);border:1px solid var(--line);border-radius:var(--radius);
+    padding:18px;margin-bottom:16px;
+  }
+  .field{margin-bottom:14px;}
+  .field label{
+    display:block;font-size:12.5px;color:var(--text-dim);margin-bottom:6px;font-weight:500;
+  }
+  .field select, .field input{
+    width:100%;background:var(--panel2);border:1px solid var(--line);
+    color:var(--text);font-size:16px;padding:13px 14px;border-radius:10px;
+    -webkit-appearance:none;appearance:none;
+    font-family:inherit;
+  }
+  .field select{
+    background-image:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='8' viewBox='0 0 12 8'%3E%3Cpath d='M1 1l5 5 5-5' stroke='%239aa39a' stroke-width='1.6' fill='none' stroke-linecap='round' stroke-linejoin='round'/%3E%3C/svg%3E");
+    background-repeat:no-repeat;background-position:right 14px center;
+    padding-right:36px;
+  }
+  .field select:focus, .field input:focus{
+    outline:none;border-color:var(--accent2);box-shadow:0 0 0 3px rgba(95,174,106,0.15);
+  }
+  .field-row{display:flex;gap:10px;}
+  .field-row .field{flex:1;}
+  .hint{font-size:11.5px;color:var(--text-dim);margin-top:5px;}
+
+  .btn-primary{
+    width:100%;background:var(--accent2);color:#0f1410;border:none;
+    font-size:16px;font-weight:700;padding:15px;border-radius:11px;
+    cursor:pointer;transition:transform .08s, opacity .15s;
+    margin-top:6px;
+  }
+  .btn-primary:active{transform:scale(0.985);}
+  .btn-primary:disabled{opacity:0.45;cursor:not-allowed;}
+  .btn-secondary{
+    width:100%;background:transparent;color:var(--text);border:1px solid var(--line);
+    font-size:14px;font-weight:600;padding:12px;border-radius:11px;cursor:pointer;
+    margin-top:8px;
+  }
+
+  .toast{
+    position:fixed;bottom:24px;left:50%;transform:translateX(-50%);
+    background:var(--accent2);color:#0f1410;font-weight:700;font-size:14px;
+    padding:13px 22px;border-radius:11px;box-shadow:0 6px 24px rgba(0,0,0,0.3);
+    opacity:0;pointer-events:none;transition:opacity .25s, transform .25s;
+    z-index:50;max-width:90%;text-align:center;
+  }
+  .toast.show{opacity:1;transform:translateX(-50%) translateY(-6px);}
+  .toast.error{background:var(--danger);color:#fff;}
+
+  /* History list */
+  .hist-item{
+    display:flex;justify-content:space-between;align-items:center;
+    padding:12px 0;border-bottom:1px solid var(--line);
+  }
+  .hist-item:last-child{border-bottom:none;}
+  .hist-main{font-size:14px;font-weight:600;}
+  .hist-sub{font-size:12px;color:var(--text-dim);margin-top:2px;}
+  .hist-amount{font-size:15px;font-weight:700;color:var(--accent);}
+  .empty-state{text-align:center;color:var(--text-dim);font-size:13px;padding:30px 10px;}
+
+  /* Gerencia */
+  .login-screen{
+    display:flex;flex-direction:column;align-items:center;justify-content:center;
+    min-height:60vh;text-align:center;padding:0 20px;
+  }
+  .login-screen .tank-icon{width:60px;height:60px;font-size:28px;margin-bottom:18px;}
+  .login-screen h2{font-size:18px;margin:0 0 6px;}
+  .login-screen p{font-size:13px;color:var(--text-dim);margin:0 0 22px;max-width:280px;}
+  .login-screen input{
+    width:100%;max-width:240px;text-align:center;letter-spacing:6px;font-size:20px;
+    background:var(--panel2);border:1px solid var(--line);color:var(--text);
+    padding:14px;border-radius:11px;margin-bottom:14px;
+  }
+  .login-screen .btn-primary{max-width:240px;}
+
+  .tabs{display:flex;gap:8px;margin-bottom:16px;overflow-x:auto;padding-bottom:2px;}
+  .tabs button{
+    border:1px solid var(--line);background:var(--panel);color:var(--text-dim);
+    font-size:12.5px;font-weight:600;padding:9px 14px;border-radius:999px;
+    cursor:pointer;white-space:nowrap;flex-shrink:0;
+  }
+  .tabs button.active{background:var(--accent2);color:#0f1410;border-color:var(--accent2);}
+
+  .metric-grid{display:grid;grid-template-columns:repeat(2,1fr);gap:10px;margin-bottom:16px;}
+  .metric{background:var(--panel);border:1px solid var(--line);border-radius:12px;padding:13px 14px;}
+  .metric .label{font-size:11px;color:var(--text-dim);text-transform:uppercase;letter-spacing:0.5px;margin-bottom:6px;}
+  .metric .value{font-size:20px;font-weight:700;}
+  .metric .value small{font-size:12px;color:var(--text-dim);font-weight:500;}
+
+  table.report{width:100%;border-collapse:collapse;font-size:13px;}
+  table.report th{
+    text-align:left;font-size:11px;color:var(--text-dim);text-transform:uppercase;
+    letter-spacing:0.5px;font-weight:600;padding:0 8px 8px 0;border-bottom:1px solid var(--line);
+  }
+  table.report td{padding:10px 8px 10px 0;border-bottom:1px solid var(--line);}
+  table.report tr:last-child td{border-bottom:none;}
+  table.report td.num, table.report th.num{text-align:right;}
+  .rank-bar{height:4px;border-radius:2px;background:var(--accent2);margin-top:5px;}
+  .name-cell{font-weight:600;}
+  .sub-cell{font-size:11px;color:var(--text-dim);}
+
+  .filter-row{display:flex;gap:8px;margin-bottom:14px;}
+  .filter-row select{flex:1;}
+
+  .bottom-nav{
+    position:fixed;bottom:0;
+    left:50%;transform:translateX(-50%);
+    width:100%;max-width:480px;
+    background:rgba(15,20,16,0.96);backdrop-filter:blur(10px);
+    border-top:1px solid var(--line);
+    display:flex;padding:8px 8px max(8px, env(safe-area-inset-bottom));
+    gap:4px;z-index:30;
+    box-sizing:border-box;
+  }
+  .bottom-nav button{
+    flex:1;background:none;border:none;color:var(--text-dim);
+    font-size:11px;font-weight:600;padding:8px 4px;border-radius:10px;
+    display:flex;flex-direction:column;align-items:center;gap:3px;cursor:pointer;
+  }
+  .bottom-nav button.active{color:var(--accent2);background:var(--panel2);}
+  .bottom-nav svg{width:20px;height:20px;}
+
+  .alert-box{
+    background:rgba(226,100,90,0.12);border:1px solid rgba(226,100,90,0.35);
+    color:var(--danger);font-size:12.5px;font-weight:600;padding:11px 14px;
+    border-radius:10px;margin-bottom:14px;display:flex;align-items:center;gap:8px;
+  }
+
+  .swipe-wrap{overflow:hidden;}
+  .view{animation:fadeIn .2s ease;}
+  @keyframes fadeIn{from{opacity:0;transform:translateY(6px);}to{opacity:1;transform:translateY(0);}}
+
+  .topbar-spacer{height:4px;}
+  .small-link{
+    text-align:center;font-size:12px;color:var(--text-dim);margin-top:14px;cursor:pointer;text-decoration:underline;
+  }
+
+  .reg-icon{
+    width:28px;height:28px;border-radius:8px;background:var(--panel2);
+    display:flex;align-items:center;justify-content:center;flex-shrink:0;
+  }
+  .reg-icon svg{width:14px;height:14px;}
+
+  /* Checkbox personalizado para tema oscuro */
+  input[type="checkbox"]{
+    -webkit-appearance:none;appearance:none;
+    width:20px;height:20px;border-radius:5px;
+    border:2px solid var(--line);background:var(--panel2);
+    cursor:pointer;flex-shrink:0;position:relative;
+    transition:background .15s, border-color .15s;
+  }
+  input[type="checkbox"]:checked{
+    background:var(--accent2);border-color:var(--accent2);
+  }
+  input[type="checkbox"]:checked::after{
+    content:'';position:absolute;left:5px;top:2px;
+    width:6px;height:10px;border:2px solid #0f1410;
+    border-top:none;border-left:none;
+    transform:rotate(45deg);
+  }
+  .master-item{
+    display:flex;justify-content:space-between;align-items:center;
+    padding:12px 0;border-bottom:1px solid var(--line);
+  }
+  .master-item:last-child{border-bottom:none;}
+  .master-item .info .name{font-size:14px;font-weight:600;}
+  .master-item .info .sub{font-size:11.5px;color:var(--text-dim);margin-top:2px;}
+  .master-actions{display:flex;gap:6px;}
+  .icon-btn{
+    width:34px;height:34px;border-radius:9px;border:1px solid var(--line);
+    background:var(--panel2);color:var(--text-dim);display:flex;align-items:center;
+    justify-content:center;cursor:pointer;flex-shrink:0;
+  }
+  .icon-btn.danger{color:var(--danger);}
+  .icon-btn svg{width:16px;height:16px;}
+  .badge{
+    font-size:10.5px;font-weight:700;padding:2px 8px;border-radius:999px;
+    background:var(--panel2);color:var(--text-dim);text-transform:uppercase;letter-spacing:0.4px;
+  }
+  .badge.inactive{color:var(--danger);}
+
+  /* Modal */
+  .modal-overlay{
+    position:fixed;inset:0;background:rgba(0,0,0,0.55);
+    display:flex;align-items:center;justify-content:center;z-index:60;
+    padding:20px;
+  }
+  .modal{
+    background:var(--panel);border:1px solid var(--line);border-radius:var(--radius);
+    padding:20px;width:100%;max-width:380px;max-height:85vh;overflow-y:auto;
+  }
+  .modal h3{font-size:16px;font-weight:600;margin:0 0 14px;}
+
+  /* Year/Month filter */
+  .ym-row{display:flex;gap:8px;margin-bottom:10px;}
+  .ym-row select{flex:1;}
+  .ym-now-tag{
+    display:inline-flex;align-items:center;gap:5px;font-size:11px;color:var(--accent2);
+    font-weight:600;margin-bottom:10px;
+  }
+
+  /* Top3 */
+  .top3-list{display:flex;flex-direction:column;gap:10px;}
+  .top3-item{display:flex;align-items:center;gap:12px;}
+  .top3-rank{
+    width:28px;height:28px;border-radius:8px;background:var(--panel2);
+    display:flex;align-items:center;justify-content:center;font-size:13px;font-weight:700;
+    color:var(--accent);flex-shrink:0;
+  }
+  .top3-item:nth-child(1) .top3-rank{background:rgba(232,163,61,0.18);color:var(--accent);}
+  .top3-item:nth-child(2) .top3-rank{color:var(--text-dim);}
+  .top3-item:nth-child(3) .top3-rank{color:var(--text-dim);}
+  .top3-body{flex:1;}
+  .top3-bar-bg{height:6px;border-radius:3px;background:var(--panel2);margin-top:6px;overflow:hidden;}
+  .top3-bar-fill{height:100%;background:var(--accent2);border-radius:3px;}
+  .top3-val{font-size:13px;font-weight:700;color:var(--accent);white-space:nowrap;}
+
+  /* Chart wrapper */
+  .chart-wrap{position:relative;width:100%;}
+  .chart-legend{
+    display:flex;flex-wrap:wrap;gap:14px;margin-bottom:10px;font-size:12px;color:var(--text-dim);
+  }
+  .chart-legend span{display:flex;align-items:center;gap:5px;}
+  .legend-dot{width:10px;height:10px;border-radius:2px;display:inline-block;}
+</style>
+</head>
+<body>
+<div class="app">
+
+  <header>
+    <div class="brand">
+      <div class="brand-mark">⛽</div>
+      <div class="brand-text">
+        <h1>Control de Diésel</h1>
+        <p id="header-sub">Carga de equipos</p>
+      </div>
+    </div>
+    <div class="mode-switch" id="mode-switch">
+      <button id="btn-mode-op" class="active" onclick="setMode('operador')">Operador</button>
+      <button id="btn-mode-ger" onclick="setMode('gerencia')">Gerencia</button>
+    </div>
+  </header>
+
+  <main id="main"></main>
+
+  <div class="bottom-nav" id="bottom-nav" style="display:none;">
+    <button id="nav-cargar" onclick="setOpTab('cargar')">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 22h12"/><path d="M5 22V7l8-4v19"/><path d="M13 11h3a2 2 0 0 1 2 2v2a1 1 0 0 0 1 1 1 1 0 0 0 1-1V9.5L17 6"/><path d="M5 7H3"/><path d="M5 12H3"/></svg>
+      Registrar
+    </button>
+    <button id="nav-historial" onclick="setOpTab('historial')">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/></svg>
+      Historial
+    </button>
+    <button id="nav-estanque" onclick="setOpTab('estanque')">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 12c0 4.4-4 8-9 8s-9-3.6-9-8 4-8 9-8 9 3.6 9 8z" opacity="0"/><path d="M3 12h18M12 3v18"/></svg>
+      Estanque
+    </button>
+  </div>
+
+</div>
+
+<div class="toast" id="toast"></div>
+<div id="modal-root"></div>
+
+<script>
+/* =========================================================
+   CONFIG / CONEXIÓN AL BACKEND (Google Sheets vía Apps Script)
+   ========================================================= */
+// Pega aquí la URL de tu Web App de Apps Script (termina en /exec)
+const API_URL = "https://script.google.com/macros/s/AKfycbzdUeHjS-3r3HJa7WKdEM3u0kYd39aYELUfTzel0T5bxgXS_Qz69B911uFYQOVNoWgPiA/exec";
+
+// Capacidad total del estanque en litros (ajustar si cambia físicamente)
+const CAPACIDAD_ESTANQUE = 600;
+const EQUIPOS_SEED = [
+  {id:"824524", nombre:"Grúa 824524", marca:"Heli", tipo:"Arriendo"},
+  {id:"824525", nombre:"Grúa 824525", marca:"Heli", tipo:"Arriendo"},
+  {id:"824526", nombre:"Grúa 824526", marca:"Heli", tipo:"Arriendo"},
+  {id:"grua1", nombre:"Grúa 1", marca:"Heli", tipo:"Propia"},
+  {id:"grua2", nombre:"Grúa 2", marca:"Heli", tipo:"Propia"},
+  {id:"grua3", nombre:"Grúa 3", marca:"Heli", tipo:"Propia"},
+  {id:"grua4", nombre:"Grúa 4", marca:"Heli", tipo:"Propia"},
+  {id:"grua5", nombre:"Grúa 5", marca:"Heli", tipo:"Propia"},
+  {id:"toyota", nombre:"Tractor Toyota", marca:"Toyota", tipo:"Arriendo"},
+  {id:"jac", nombre:"Tractor JAC", marca:"JAC", tipo:"Arriendo"},
+  {id:"komatsu", nombre:"Komatsu", marca:"Komatsu", tipo:"Arriendo"},
+  {id:"lonking", nombre:"Lonking", marca:"Lonking", tipo:"Arriendo"},
+  {id:"lonking_ch", nombre:"Lonking CH", marca:"CH", tipo:"Arriendo"},
+  {id:"goodsense", nombre:"Goodsense", marca:"Goodsense", tipo:"Arriendo"},
+  {id:"hidrolavadora", nombre:"Hidrolavadora", marca:"-", tipo:"Propia"},
+].map(e=>({...e, activo:true}));
+
+const OPERADORES_MAQUINA_SEED = [
+  "Bastian Carreño","Miguel Poblete","Yerko Moraga","Leonardo Muñoz","Eduardo Ruiz",
+  "Ruben Vilogron","Luis Cardenas","Dario Vasquez","Nelson Vega","Gabriel Muñoz",
+  "Claudio Figueroa","Claudia Baeza","Carlos Henriquez","Miguel Pradines",
+  "Gabriel Bahamondes","Manuel Riquelme","Benjamin Oyarzo"
+].map(n=>({id:cryptoIdSeed(n), nombre:n, activo:true}));
+
+const OPERADORES_CARGA_SEED = [
+  "Mirta Maldonado","Mariana Pacheco","Jaime Aburto"
+].map(n=>({id:cryptoIdSeed(n), nombre:n, activo:true}));
+
+function cryptoIdSeed(str){
+  return 'seed_' + str.toLowerCase().replace(/[^a-z0-9]+/g,'_');
+}
+
+const HISTORICO_MENSUAL = {
+  "2024": {"6":1078.4,"7":2313.9,"8":1526.5,"9":2931.3,"10":3747.5,"11":2111.0,"12":1254.5},
+  "2025": {"1":459.0,"2":248.0,"3":2209.0,"4":3069.2,"5":1149.0,"6":1013.1,"7":2223.3,"8":1338.3,"9":2279.0,"10":3659.0,"11":2256.0,"12":804.0},
+  "2026": {"1":875.0,"2":1106.0,"3":2725.0,"4":3478.0,"5":1172.0}
+};
+
+const MESES = ["Ene","Feb","Mar","Abr","May","Jun","Jul","Ago","Sep","Oct","Nov","Dic"];
+
+let STATE = {
+  cargas: [],
+  movsEstanque: [],
+  precioDiesel: 1058,
+  equipos: [],
+  operadoresMaquina: [],
+  operadoresCarga: [],
+  historico: {},
+  config: { umbralAlertaLitros: 100, emailsAlerta: "dgarcia@semillas-sz.com,eaguilar@semillas-sz.com" },
+  modoDemo: false,
+  mode: "operador",
+  opTab: "cargar",
+  gerTab: "resumen",
+  gerLoggedIn: false,
+  filterEquipo: "todos",
+  filterOperador: "todos",
+  filterYear: new Date().getFullYear(),
+  filterMonth: new Date().getMonth()+1, // 1-12, 0 = todos los meses del año
+  modal: null, // {type, data}
+  mostrarInactivos: false,
+  mostrarInactivosReporte: false,
+};
+
+/* =========================================================
+   UTILIDADES
+   ========================================================= */
+function fmtNum(n, dec=1){
+  if(n===null||n===undefined||isNaN(n)) return "-";
+  return Number(n).toLocaleString('es-CL',{minimumFractionDigits:dec,maximumFractionDigits:dec});
+}
+function fmtInt(n){
+  if(n===null||n===undefined||isNaN(n)) return "-";
+  return Number(n).toLocaleString('es-CL');
+}
+function fmtCLP(n){
+  return "$" + Math.round(n).toLocaleString('es-CL');
+}
+function fmtDate(iso){
+  const d = new Date(iso);
+  return d.toLocaleDateString('es-CL',{day:'2-digit',month:'2-digit',year:'numeric'});
+}
+function fmtDateTime(iso){
+  const d = new Date(iso);
+  return d.toLocaleDateString('es-CL',{day:'2-digit',month:'2-digit',year:'2-digit'}) + " " +
+         d.toLocaleTimeString('es-CL',{hour:'2-digit',minute:'2-digit'});
+}
+function todayISO(){
+  const d = new Date();
+  d.setMinutes(d.getMinutes() - d.getTimezoneOffset());
+  return d.toISOString().slice(0,16);
+}
+function equipoNombre(id){
+  const e = STATE.equipos.find(x=>x.id===id);
+  return e ? e.nombre : id;
+}
+function equiposActivos(){
+  return STATE.equipos.filter(e=>e.activo);
+}
+function operadoresMaquinaActivos(){
+  return STATE.operadoresMaquina.filter(o=>o.activo);
+}
+function operadoresCargaActivos(){
+  return STATE.operadoresCarga.filter(o=>o.activo);
+}
+function showToast(msg, isError=false){
+  const t = document.getElementById('toast');
+  t.textContent = msg;
+  t.classList.remove('error');
+  if(isError) t.classList.add('error');
+  t.classList.add('show');
+  setTimeout(()=>t.classList.remove('show'), 2400);
+}
+
+/* =========================================================
+   PERSISTENCIA — API (Google Sheets vía Apps Script)
+   ========================================================= */
+function apiConfigurada(){
+  return API_URL && API_URL.indexOf("http") === 0;
+}
+
+async function apiGet(){
+  const res = await fetch(API_URL + "?action=getAll");
+  if(!res.ok) throw new Error("Error de red: " + res.status);
+  const data = await res.json();
+  if(data.error) throw new Error(data.error);
+  return data;
+}
+
+async function apiPost(action, data){
+  // Apps Script tiene problemas de CORS con POST desde dominios externos.
+  // Solución: enviamos todo via GET con los parámetros codificados en la URL.
+  const payload = encodeURIComponent(JSON.stringify({action, data}));
+  const url = API_URL + "?method=POST&payload=" + payload;
+  const res = await fetch(url);
+  if(!res.ok) throw new Error("Error de red: " + res.status);
+  const json = await res.json();
+  if(json.error && json.error !== "horometro_menor") throw new Error(json.error);
+  return json;
+}
+
+async function loadAll(){
+  if(!apiConfigurada()){
+    // Modo demo local: sin backend conectado
+    STATE.modoDemo = true;
+    STATE.equipos = EQUIPOS_SEED;
+    STATE.operadoresMaquina = OPERADORES_MAQUINA_SEED;
+    STATE.operadoresCarga = OPERADORES_CARGA_SEED;
+    STATE.historico = HISTORICO_MENSUAL;
+    STATE.cargas = [];
+    STATE.movsEstanque = [{
+      id: cryptoId(), fecha: new Date().toISOString(), litros: 600,
+      tipo: "ingreso", observacion: "Carga inicial estanque (demo)", saldoResultante: 600
+    }];
+    STATE.precioDiesel = 1058;
+    STATE.config = { umbralAlertaLitros: 100, emailsAlerta: "dgarcia@semillas-sz.com,eaguilar@semillas-sz.com" };
+    return;
+  }
+
+  try{
+    const data = await apiGet();
+    STATE.modoDemo = false;
+    // Normalizar todos los IDs a string para evitar problemas de comparación
+    STATE.cargas = (data.cargas || []).map(c=>({...c, equipoId: String(c.equipoId)}));
+    STATE.movsEstanque = data.estanque || [];
+    STATE.equipos = (data.equipos || []).map(e=>({...e, id: String(e.id)}));
+    STATE.operadoresMaquina = (data.operadoresMaquina || []).map(o=>({...o, id: String(o.id)}));
+    STATE.operadoresCarga = (data.operadoresCarga || []).map(o=>({...o, id: String(o.id)}));
+    STATE.historico = data.historico || {};
+    const cfg = data.config || {};
+    STATE.precioDiesel = Number(cfg.precioDiesel || 1058);
+    STATE.config = {
+      umbralAlertaLitros: Number(cfg.umbralAlertaLitros || 100),
+      emailsAlerta: cfg.emailsAlerta || "dgarcia@semillas-sz.com,eaguilar@semillas-sz.com"
+    };
+  }catch(e){
+    console.error(e);
+    STATE.modoDemo = true;
+    STATE.apiError = e.message;
+    // fallback a datos semilla para que la app no quede vacía
+    STATE.equipos = STATE.equipos.length ? STATE.equipos : EQUIPOS_SEED;
+    STATE.operadoresMaquina = STATE.operadoresMaquina.length ? STATE.operadoresMaquina : OPERADORES_MAQUINA_SEED;
+    STATE.operadoresCarga = STATE.operadoresCarga.length ? STATE.operadoresCarga : OPERADORES_CARGA_SEED;
+    STATE.historico = Object.keys(STATE.historico).length ? STATE.historico : HISTORICO_MENSUAL;
+    if(STATE.movsEstanque.length===0){
+      STATE.movsEstanque = [{id:cryptoId(), fecha:new Date().toISOString(), litros:600, tipo:"ingreso", observacion:"Carga inicial estanque (sin conexión)", saldoResultante:600}];
+    }
+  }
+}
+
+function cryptoId(){
+  return Date.now().toString(36) + Math.random().toString(36).slice(2,8);
+}
+
+/* =========================================================
+   CALCULOS
+   ========================================================= */
+function equipoTieneHorometro(equipoId){
+  const e = STATE.equipos.find(x=>String(x.id)===String(equipoId));
+  return !e || e.tieneHorometro !== false; // default true si no está en maestros
+}
+function operadorEsGenerico(nombre){
+  const o = STATE.operadoresMaquina.find(x=>x.nombre===nombre);
+  return o && o.esGenerico === true;
+}
+function saldoEstanque(){
+  if(STATE.movsEstanque.length===0) return 0;
+  return STATE.movsEstanque[STATE.movsEstanque.length-1].saldoResultante;
+}
+function nombreMovEstanque(m){
+  if(m.tipo==='ingreso') return 'Reabastecimiento';
+  if(m.tipo==='ajuste') return m.litros>=0 ? 'Ajuste (+)' : 'Ajuste (-)';
+  return 'Salida a equipo';
+}
+
+/* =========================================================
+   RENDER PRINCIPAL
+   ========================================================= */
+function setMode(mode){
+  STATE.mode = mode;
+  document.getElementById('btn-mode-op').classList.toggle('active', mode==='operador');
+  document.getElementById('btn-mode-ger').classList.toggle('active', mode==='gerencia');
+  document.getElementById('bottom-nav').style.display = mode==='operador' ? 'flex' : 'none';
+  document.getElementById('header-sub').textContent = mode==='operador' ? 'Carga de equipos' : 'Panel de gerencia';
+  render();
+}
+function setOpTab(tab){
+  STATE.opTab = tab;
+  render();
+}
+function setGerTab(tab){
+  STATE.gerTab = tab;
+  render();
+}
+
+function render(){
+  const main = document.getElementById('main');
+  const nav = document.getElementById('bottom-nav');
+  if(STATE.mode === 'operador'){
+    nav.style.display = 'flex';
+    updateBottomNav();
+    if(STATE.opTab==='cargar') main.innerHTML = renderCargar();
+    else if(STATE.opTab==='historial') main.innerHTML = renderHistorial();
+    else if(STATE.opTab==='estanque') main.innerHTML = renderEstanqueOperador();
+    attachOperadorEvents();
+  } else {
+    nav.style.display = 'none';
+    if(!STATE.gerLoggedIn){
+      main.innerHTML = renderLogin();
+      attachLoginEvents();
+    } else {
+      main.innerHTML = renderGerencia();
+      attachGerenciaEvents();
+      if(STATE.gerTab==='comparativo'){
+        setTimeout(drawComparativoChart, 30);
+      }
+    }
+  }
+}
+function updateBottomNav(){
+  document.getElementById('nav-cargar').classList.toggle('active', STATE.opTab==='cargar');
+  document.getElementById('nav-historial').classList.toggle('active', STATE.opTab==='historial');
+  document.getElementById('nav-estanque').classList.toggle('active', STATE.opTab==='estanque');
+}
+
+/* =========================================================
+   VISTA OPERADOR: REGISTRAR CARGA
+   ========================================================= */
+function renderCargar(){
+  const saldo = saldoEstanque();
+  const low = saldo <= STATE.config.umbralAlertaLitros;
+  const pct = Math.max(0, Math.min(100, (saldo/CAPACIDAD_ESTANQUE)*100));
+
+  const equiposOpts = equiposActivos().map(e=>`<option value="${e.id}">${e.nombre}</option>`).join('');
+  const opCargaOpts = operadoresCargaActivos().map(o=>`<option value="${o.nombre}">${o.nombre}</option>`).join('');
+  const opMaquinaOpts = operadoresMaquinaActivos().map(o=>`<option value="${o.nombre}">${o.nombre}</option>`).join('');
+
+  return `
+  <div class="view">
+    <div class="tank-card">
+      <div style="flex:1;">
+        <div class="label">Saldo estanque</div>
+        <div class="value">${fmtNum(saldo,1)}<span class="unit">L</span><span style="font-size:15px;font-weight:600;color:${low?'var(--danger)':'var(--text-dim)'};margin-left:10px;">${pct.toFixed(0)}%</span></div>
+        <div class="tank-bar"><div class="tank-bar-fill ${low?'low':''}" style="width:${pct}%"></div></div>
+      </div>
+      <div class="tank-icon">🛢️</div>
+    </div>
+
+    ${low ? `<div class="alert-box">⚠ Saldo de estanque bajo (${fmtNum(saldo,1)} L). Se notificará a gerencia por correo al registrar la próxima carga.</div>` : ''}
+
+    <div class="card">
+      <h2 class="section-title">Nueva carga</h2>
+      <div class="field">
+        <label>Operador de mantención que carga el combustible</label>
+        <select id="f-operador-carga">
+          <option value="">Seleccionar...</option>
+          ${opCargaOpts}
+        </select>
+      </div>
+      <div class="field">
+        <label>Equipo (grúa / tractor)</label>
+        <select id="f-equipo">
+          <option value="">Seleccionar...</option>
+          ${equiposOpts}
+        </select>
+      </div>
+      <div class="field">
+        <label>Operador del equipo</label>
+        <select id="f-operador-maquina">
+          <option value="">Seleccionar...</option>
+          ${opMaquinaOpts}
+        </select>
+      </div>
+      <div class="field-row">
+        <div class="field">
+          <label>Litros cargados</label>
+          <input type="number" id="f-litros" inputmode="decimal" placeholder="0.0" step="0.1" min="0">
+        </div>
+        <div class="field" id="campo-horometro">
+          <label>Horómetro (hrs)</label>
+          <input type="number" id="f-horometro" inputmode="decimal" placeholder="0.0" step="0.1" min="0">
+        </div>
+      </div>
+      <div class="field" style="margin-top:-6px;margin-bottom:6px;">
+        <label style="display:flex;align-items:center;gap:8px;cursor:pointer;font-size:13px;">
+          <input type="checkbox" id="f-sin-horometro" onchange="toggleHorometro()" style="width:18px;height:18px;cursor:pointer;">
+          Sin horómetro (calefactores, préstamos a otras áreas, etc.)
+        </label>
+      </div>
+      <div class="field">
+        <label>Fecha y hora</label>
+        <input type="datetime-local" id="f-fecha" value="${todayISO()}">
+      </div>
+      <div id="rendimiento-preview" class="hint"></div>
+      <button class="btn-primary" id="btn-guardar" onclick="registrarCarga()">Registrar carga</button>
+    </div>
+  </div>
+  `;
+}
+
+function attachOperadorEvents(){
+  const eq = document.getElementById('f-equipo');
+  const hor = document.getElementById('f-horometro');
+  if(!eq || !hor) return;
+
+  const aplicarSinHorometro = (forzar) => {
+    const chk = document.getElementById('f-sin-horometro');
+    const campo = document.getElementById('campo-horometro');
+    const sinHoro = forzar || (chk && chk.checked);
+    if(chk){
+      chk.checked = sinHoro;
+      chk.disabled = forzar;
+      chk.parentElement.style.opacity = forzar ? '0.5' : '1';
+    }
+    if(campo){
+      campo.style.opacity = sinHoro ? '0.35' : '1';
+      hor.disabled = sinHoro;
+      if(sinHoro) hor.value = '';
+    }
+  };
+
+  const updatePreview = () => {
+    const equipoId = eq.value;
+    const sinHoro = document.getElementById('f-sin-horometro') && document.getElementById('f-sin-horometro').checked;
+    const horometro = parseFloat(hor.value);
+    const prev = document.getElementById('rendimiento-preview');
+    prev.classList.remove('alert-box');
+    prev.style.color = '';
+    if(sinHoro){ prev.textContent = 'Sin horómetro — no se calculará rendimiento L/h.'; return; }
+    if(!equipoId || isNaN(horometro)){ prev.textContent=''; return; }
+    const previas = STATE.cargas
+      .filter(c=>c.equipoId===equipoId && c.horometro!==null)
+      .sort((a,b)=> new Date(b.fecha) - new Date(a.fecha));
+    if(previas.length===0){ prev.textContent='Primera carga registrada para este equipo.'; return; }
+    const ultima = previas[0];
+    const deltaH = horometro - ultima.horometro;
+    const litrosInput = parseFloat(document.getElementById('f-litros').value);
+    if(deltaH < 0){
+      prev.textContent = `⚠ El horómetro no puede ser menor al último registrado para este equipo: ${fmtNum(ultima.horometro,1)} h (${fmtDateTime(ultima.fecha)}).`;
+      prev.style.color = 'var(--danger)';
+    } else if(deltaH === 0){
+      prev.textContent = `⚠ El horómetro es igual al último registrado (${fmtNum(ultima.horometro,1)} h). No se calculará rendimiento.`;
+    } else if(!isNaN(litrosInput)){
+      const rend = litrosInput / deltaH;
+      prev.textContent = `Horas trabajadas desde última carga: ${fmtNum(deltaH,1)} h → ${fmtNum(rend,2)} L/h`;
+    } else {
+      prev.textContent = `Última carga: ${fmtNum(ultima.horometro,1)} h (${fmtNum(deltaH,1)} h transcurridas)`;
+    }
+  };
+
+  // Al cambiar equipo: detectar automáticamente si no tiene horómetro
+  eq.addEventListener('change', ()=>{
+    const sinHoroMaestro = eq.value && !equipoTieneHorometro(eq.value);
+    aplicarSinHorometro(sinHoroMaestro);
+    updatePreview();
+  });
+
+  hor.addEventListener('input', updatePreview);
+  document.getElementById('f-litros').addEventListener('input', updatePreview);
+  const chk = document.getElementById('f-sin-horometro');
+  if(chk) chk.addEventListener('change', ()=>{ aplicarSinHorometro(false); updatePreview(); });
+}
+
+function toggleHorometro(){
+  const sinHoro = document.getElementById('f-sin-horometro').checked;
+  const campo = document.getElementById('campo-horometro');
+  const input = document.getElementById('f-horometro');
+  campo.style.opacity = sinHoro ? '0.35' : '1';
+  input.disabled = sinHoro;
+  if(sinHoro){ input.value = ''; document.getElementById('rendimiento-preview').textContent = ''; }
+}
+
+async function registrarCarga(){
+  const operadorCarga = document.getElementById('f-operador-carga').value;
+  const equipoId = document.getElementById('f-equipo').value;
+  const operadorMaquina = document.getElementById('f-operador-maquina').value;
+  const litros = parseFloat(document.getElementById('f-litros').value);
+  const sinHorometro = document.getElementById('f-sin-horometro').checked;
+  const horometro = sinHorometro ? null : parseFloat(document.getElementById('f-horometro').value);
+  const fecha = document.getElementById('f-fecha').value;
+
+  if(!operadorCarga){ showToast('Selecciona el operador que carga el combustible', true); return; }
+  if(!equipoId){ showToast('Selecciona el equipo', true); return; }
+  if(!operadorMaquina){ showToast('Selecciona el operador del equipo', true); return; }
+  if(isNaN(litros) || litros<=0){ showToast('Ingresa los litros cargados', true); return; }
+  if(!sinHorometro && (isNaN(horometro) || horometro<0)){ showToast('Ingresa el horómetro o marca "Sin horómetro"', true); return; }
+  if(!fecha){ showToast('Ingresa la fecha', true); return; }
+
+  // Resguardo horómetro: solo si aplica
+  if(!sinHorometro){
+    const previas = STATE.cargas
+      .filter(c=>c.equipoId===equipoId && c.horometro!==null)
+      .sort((a,b)=> new Date(b.fecha) - new Date(a.fecha));
+    if(previas.length>0 && horometro < previas[0].horometro){
+      showToast(`El horómetro (${fmtNum(horometro,1)}) no puede ser menor al último registrado para este equipo (${fmtNum(previas[0].horometro,1)} hrs, ${fmtDateTime(previas[0].fecha)}).`, true);
+      return;
+    }
+  }
+
+  const saldo = saldoEstanque();
+  if(litros > saldo){
+    if(!confirm(`El saldo del estanque es ${fmtNum(saldo,1)} L, menor a los ${fmtNum(litros,1)} L ingresados. ¿Registrar igualmente?`)) return;
+  }
+
+  const btn = document.getElementById('btn-guardar');
+  btn.disabled = true; btn.textContent = 'Guardando...';
+
+  let litrosPorHora = null;
+  let horasTranscurridas = null;
+  if(!sinHorometro && horometro !== null){
+    const prevCarga = STATE.cargas
+      .filter(c=>c.equipoId===equipoId && c.horometro!==null)
+      .sort((a,b)=> new Date(b.fecha) - new Date(a.fecha));
+    if(prevCarga.length>0){
+      const deltaH = horometro - prevCarga[0].horometro;
+      if(deltaH > 0){
+        horasTranscurridas = deltaH;
+        litrosPorHora = litros / deltaH;
+      }
+    }
+  }
+
+  const equipo = STATE.equipos.find(e=>e.id===equipoId);
+  const registro = {
+    id: cryptoId(),
+    fecha: new Date(fecha).toISOString(),
+    operador: operadorMaquina,
+    operadorCarga: operadorCarga,
+    equipoId: equipoId,
+    equipoNombre: equipo.nombre,
+    marca: equipo.marca,
+    tipo: equipo.tipo,
+    litros: litros,
+    horometro: horometro,
+    horasTranscurridas: horasTranscurridas,
+    litrosPorHora: litrosPorHora,
+    precioDiesel: STATE.precioDiesel,
+    valorizado: litros * STATE.precioDiesel,
+    creadoEn: new Date().toISOString()
+  };
+
+  if(apiConfigurada()){
+    try{
+      const res = await apiPost('addCarga', {
+        fecha: registro.fecha,
+        operador: registro.operador,
+        operadorCarga: registro.operadorCarga,
+        equipoId: registro.equipoId,
+        equipoNombre: registro.equipoNombre,
+        marca: registro.marca,
+        tipo: registro.tipo,
+        litros: registro.litros,
+        horometro: registro.horometro
+      });
+      if(res.error === 'horometro_menor'){
+        showToast(res.message, true);
+        btn.disabled = false; btn.textContent = 'Registrar carga';
+        return;
+      }
+      registro.id = res.id;
+      registro.litrosPorHora = res.litrosPorHora;
+      registro.horasTranscurridas = res.horasTranscurridas;
+    }catch(e){
+      showToast('No se pudo guardar en el servidor: ' + e.message, true);
+      btn.disabled = false; btn.textContent = 'Registrar carga';
+      return;
+    }
+  }
+
+  STATE.cargas.push(registro);
+
+  // descontar del estanque (localmente, el backend ya lo hizo si está conectado)
+  const nuevoSaldo = saldoEstanque() - litros;
+  STATE.movsEstanque.push({
+    id: cryptoId(),
+    fecha: registro.fecha,
+    litros: -litros,
+    tipo: "salida",
+    observacion: `Carga a ${equipo.nombre} - ${operadorMaquina}`,
+    saldoResultante: nuevoSaldo
+  });
+
+  showToast(`Carga registrada: ${fmtNum(litros,1)} L a ${equipo.nombre}`);
+
+  if(nuevoSaldo <= STATE.config.umbralAlertaLitros){
+    showToast(`⚠ Saldo de estanque en ${fmtNum(nuevoSaldo,1)} L, bajo el umbral de alerta (${STATE.config.umbralAlertaLitros} L)${apiConfigurada()?'. Se notificó por correo a gerencia.':''}`, true);
+  }
+
+  // limpiar formulario manteniendo operador de carga
+  const opSel = operadorCarga;
+  render();
+  setTimeout(()=>{
+    const opField = document.getElementById('f-operador-carga');
+    if(opField) opField.value = opSel;
+  }, 50);
+}
+
+/* =========================================================
+   VISTA OPERADOR: HISTORIAL
+   ========================================================= */
+function renderHistorial(){
+  const ordenadas = [...STATE.cargas].sort((a,b)=> new Date(b.fecha) - new Date(a.fecha)).slice(0,30);
+  if(ordenadas.length===0){
+    return `<div class="view"><div class="card"><div class="empty-state">Aún no hay cargas registradas.<br>Las cargas que registres aparecerán aquí.</div></div></div>`;
+  }
+  const items = ordenadas.map(c=>`
+    <div class="hist-item">
+      <div>
+        <div class="hist-main">${c.equipoNombre}</div>
+        <div class="hist-sub">${c.operador} · ${fmtDateTime(c.fecha)}${c.litrosPorHora!==null ? ` · ${fmtNum(c.litrosPorHora,2)} L/h` : ''}</div>
+      </div>
+      <div class="hist-amount">${fmtNum(c.litros,1)} L</div>
+    </div>
+  `).join('');
+  return `
+  <div class="view">
+    <h2 class="section-title">Últimas cargas</h2>
+    <div class="card">${items}</div>
+  </div>
+  `;
+}
+
+/* =========================================================
+   VISTA OPERADOR: ESTANQUE (consulta + ingreso)
+   ========================================================= */
+function renderEstanqueOperador(){
+  const saldo = saldoEstanque();
+  const pct = Math.max(0, Math.min(100, (saldo/CAPACIDAD_ESTANQUE)*100));
+  const low = saldo <= STATE.config.umbralAlertaLitros;
+  const movs = [...STATE.movsEstanque].sort((a,b)=> new Date(b.fecha) - new Date(a.fecha)).slice(0,15);
+
+  const items = movs.map(m=>`
+    <div class="hist-item">
+      <div>
+        <div class="hist-main">${nombreMovEstanque(m)}</div>
+        <div class="hist-sub">${fmtDateTime(m.fecha)}${m.observacion ? ' · '+m.observacion : ''}</div>
+      </div>
+      <div class="hist-amount" style="color:${m.litros>0?'var(--accent2)':'var(--text-dim)'}">${m.litros>0?'+':''}${fmtNum(m.litros,1)} L</div>
+    </div>
+  `).join('');
+
+  return `
+  <div class="view">
+    <div class="tank-card">
+      <div style="flex:1;">
+        <div class="label">Saldo estanque</div>
+        <div class="value">${fmtNum(saldo,1)}<span class="unit">L</span><span style="font-size:15px;font-weight:600;color:${low?'var(--danger)':'var(--text-dim)'};margin-left:10px;">${pct.toFixed(0)}%</span></div>
+        <div class="tank-bar"><div class="tank-bar-fill ${low?'low':''}" style="width:${pct}%"></div></div>
+      </div>
+      <div class="tank-icon">🛢️</div>
+    </div>
+
+    <div class="card">
+      <h2 class="section-title">Registrar reabastecimiento</h2>
+      <div class="field">
+        <label>Litros que ingresan al estanque</label>
+        <input type="number" id="f-litros-estanque" inputmode="decimal" placeholder="0.0" step="0.1" min="0">
+      </div>
+      <div class="field">
+        <label>Observación (opcional)</label>
+        <input type="text" id="f-obs-estanque" placeholder="Ej: Camión proveedor X">
+      </div>
+      <button class="btn-primary" onclick="registrarReabastecimiento()">Registrar ingreso</button>
+    </div>
+
+    <h2 class="section-title">Movimientos recientes</h2>
+    <div class="card">${items || '<div class="empty-state">Sin movimientos.</div>'}</div>
+  </div>
+  `;
+}
+
+async function registrarReabastecimiento(){
+  const litros = parseFloat(document.getElementById('f-litros-estanque').value);
+  const obs = document.getElementById('f-obs-estanque').value.trim();
+  if(isNaN(litros) || litros<=0){ showToast('Ingresa una cantidad válida', true); return; }
+
+  const fecha = new Date().toISOString();
+  const nuevoSaldo = saldoEstanque() + litros;
+
+  if(apiConfigurada()){
+    try{
+      await apiPost('addEstanqueMov', { fecha, litros, observacion: obs || null });
+    }catch(e){
+      showToast('No se pudo guardar en el servidor: ' + e.message, true);
+      return;
+    }
+  }
+
+  STATE.movsEstanque.push({
+    id: cryptoId(),
+    fecha,
+    litros: litros,
+    tipo: "ingreso",
+    observacion: obs || null,
+    saldoResultante: nuevoSaldo
+  });
+  showToast(`Reabastecimiento registrado: +${fmtNum(litros,1)} L`);
+  render();
+}
+
+/* =========================================================
+   GERENCIA: LOGIN SIMPLE
+   ========================================================= */
+function renderLogin(){
+  return `
+  <div class="view login-screen">
+    <div class="tank-icon">🔒</div>
+    <h2>Acceso gerencia</h2>
+    <p>Ingresa el PIN para ver los reportes de consumo y administrar los maestros de equipos y operadores.</p>
+    <input type="password" id="ger-pin" inputmode="numeric" maxlength="4" placeholder="••••">
+    <button class="btn-primary" onclick="checkPin()">Ingresar</button>
+    <div class="small-link" onclick="setMode('operador')">Volver a registro de cargas</div>
+  </div>
+  `;
+}
+function attachLoginEvents(){
+  const pin = document.getElementById('ger-pin');
+  if(pin){
+    pin.addEventListener('keydown', e=>{ if(e.key==='Enter') checkPin(); });
+    pin.focus();
+  }
+}
+function checkPin(){
+  const pin = document.getElementById('ger-pin').value;
+  if(pin === '2310'){
+    STATE.gerLoggedIn = true;
+    render();
+  } else {
+    showToast('PIN incorrecto', true);
+  }
+}
+
+/* =========================================================
+   GERENCIA: REPORTES
+   ========================================================= */
+function filteredCargas(){
+  let arr = [...STATE.cargas];
+  if(STATE.filterYear !== 'todos'){
+    arr = arr.filter(c=> new Date(c.fecha).getFullYear() === STATE.filterYear);
+    if(STATE.filterMonth !== 0){
+      arr = arr.filter(c=> (new Date(c.fecha).getMonth()+1) === STATE.filterMonth);
+    }
+  }
+  if(STATE.filterEquipo !== 'todos'){
+    arr = arr.filter(c=>c.equipoId===STATE.filterEquipo);
+  }
+  if(STATE.filterOperador !== 'todos'){
+    arr = arr.filter(c=>c.operador===STATE.filterOperador);
+  }
+  return arr;
+}
+
+function aniosDisponibles(){
+  const anios = new Set();
+  STATE.cargas.forEach(c=>anios.add(new Date(c.fecha).getFullYear()));
+  Object.keys(STATE.historico).forEach(y=>anios.add(parseInt(y)));
+  anios.add(new Date().getFullYear());
+  return Array.from(anios).sort((a,b)=>b-a);
+}
+
+function renderGerencia(){
+  const tabs = `
+    <div class="tabs">
+      <button class="${STATE.gerTab==='resumen'?'active':''}" onclick="setGerTab('resumen')">Resumen</button>
+      <button class="${STATE.gerTab==='gruas'?'active':''}" onclick="setGerTab('gruas')">Por grúa</button>
+      <button class="${STATE.gerTab==='operadores'?'active':''}" onclick="setGerTab('operadores')">Por operador</button>
+      <button class="${STATE.gerTab==='historial'?'active':''}" onclick="setGerTab('historial')">Historial</button>
+      <button class="${STATE.gerTab==='comparativo'?'active':''}" onclick="setGerTab('comparativo')">Comparativo anual</button>
+      <button class="${STATE.gerTab==='estanque'?'active':''}" onclick="setGerTab('estanque')">Estanque</button>
+      <button class="${STATE.gerTab==='maestros'?'active':''}" onclick="setGerTab('maestros')">Maestros</button>
+      <button class="${STATE.gerTab==='ajustes'?'active':''}" onclick="setGerTab('ajustes')">Ajustes</button>
+    </div>
+  `;
+  let body = '';
+  if(STATE.gerTab==='resumen') body = renderResumen();
+  else if(STATE.gerTab==='gruas') body = renderPorGrua();
+  else if(STATE.gerTab==='operadores') body = renderPorOperador();
+  else if(STATE.gerTab==='historial') body = renderHistorialGerencia();
+  else if(STATE.gerTab==='comparativo') body = renderComparativoAnual();
+  else if(STATE.gerTab==='estanque') body = renderEstanqueGerencia();
+  else if(STATE.gerTab==='maestros') body = renderMaestros();
+  else if(STATE.gerTab==='ajustes') body = renderAjustes();
+
+  return `<div class="view">${tabs}${body}</div>`;
+}
+
+function renderFiltros(){
+  const conInactivos = STATE.mostrarInactivosReporte;
+  const equiposOpts = STATE.equipos
+    .filter(e=> conInactivos || e.activo)
+    .map(e=>`<option value="${e.id}" ${STATE.filterEquipo===e.id?'selected':''}>${e.nombre}${!e.activo?' (inactivo)':''}</option>`).join('');
+  const operadoresOpts = STATE.operadoresMaquina
+    .filter(o=> conInactivos || o.activo)
+    .map(o=>`<option value="${o.nombre}" ${STATE.filterOperador===o.nombre?'selected':''}>${o.nombre}${!o.activo?' (inactivo)':''}</option>`).join('');
+
+  const anioActual = new Date().getFullYear();
+  const mesActual = new Date().getMonth()+1;
+  const anios = aniosDisponibles();
+  const aniosOpts = anios.map(y=>`<option value="${y}" ${STATE.filterYear===y?'selected':''}>${y}${y===anioActual?' (actual)':''}</option>`).join('');
+  const mesesOpts = MESES.map((m,i)=>`<option value="${i+1}" ${STATE.filterMonth===(i+1)?'selected':''}>${m}${(i+1)===mesActual && STATE.filterYear===anioActual?' (actual)':''}</option>`).join('');
+
+  const esActual = STATE.filterYear===anioActual && STATE.filterMonth===mesActual;
+
+  return `
+  ${esActual ? `<div class="ym-now-tag"><i class="ti ti-calendar" style="font-size:13px"></i> Mostrando mes y año actual</div>` : ''}
+  <div class="ym-row">
+    <select id="filter-year">
+      <option value="todos" ${STATE.filterYear==='todos'?'selected':''}>Todos los años</option>
+      ${aniosOpts}
+    </select>
+    <select id="filter-month" ${STATE.filterYear==='todos'?'disabled':''}>
+      <option value="0" ${STATE.filterMonth===0?'selected':''}>Todo el año</option>
+      ${mesesOpts}
+    </select>
+  </div>
+  <div class="filter-row">
+    <select id="filter-equipo">
+      <option value="todos">Todos los equipos</option>
+      ${equiposOpts}
+    </select>
+    <select id="filter-operador">
+      <option value="todos">Todos los operadores</option>
+      ${operadoresOpts}
+    </select>
+  </div>
+  <div style="display:flex;justify-content:flex-end;margin-bottom:4px;">
+    <button onclick="STATE.mostrarInactivosReporte=!STATE.mostrarInactivosReporte;render()" style="
+      background:${conInactivos?'var(--panel2)':'transparent'};
+      border:1px solid var(--line);
+      color:${conInactivos?'var(--text)':'var(--text-dim)'};
+      font-size:11.5px;font-weight:600;padding:6px 12px;border-radius:999px;cursor:pointer;">
+      ${conInactivos ? '✕ Ocultar inactivos' : 'Incluir inactivos'}
+    </button>
+  </div>
+  `;
+}
+
+function renderResumen(){
+  const cargas = filteredCargas();
+  const totalLitros = cargas.reduce((s,c)=>s+c.litros,0);
+  const totalValor = cargas.reduce((s,c)=>s+c.valorizado,0);
+  const promRend = (()=>{
+    const validos = cargas.filter(c=>Number(c.litrosPorHora) > 0);
+    if(validos.length===0) return null;
+    return validos.reduce((s,c)=>s+c.litrosPorHora,0)/validos.length;
+  })();
+
+  // top equipo y top operador por consumo — excluir equipos sin horómetro del ranking
+  const porEquipo = {};
+  const porOperador = {};
+  cargas.forEach(c=>{
+    if(!porEquipo[c.equipoNombre]) porEquipo[c.equipoNombre] = {equipoId:c.equipoId, litros:0, valor:0};
+    porEquipo[c.equipoNombre].litros += c.litros;
+    porEquipo[c.equipoNombre].valor += c.valorizado;
+    porOperador[c.operador] = (porOperador[c.operador]||0) + c.litros;
+  });
+  // Solo equipos con horómetro en el ranking
+  const rankingEquipos = Object.entries(porEquipo)
+    .filter(([,info])=> equipoTieneHorometro(info.equipoId))
+    .sort((a,b)=>b[1].litros-a[1].litros);
+  const topEquipo = rankingEquipos[0] ? [rankingEquipos[0][0], rankingEquipos[0][1].litros] : null;
+  // Excluir operadores genéricos del ranking
+  const topOperador = Object.entries(porOperador)
+    .filter(([nombre])=> !operadorEsGenerico(nombre))
+    .sort((a,b)=>b[1]-a[1])[0];
+
+  const top3 = rankingEquipos.slice(0,3);
+  const maxTop3 = top3.length ? top3[0][1].litros : 1;
+  const top3Html = top3.length ? top3.map(([nombre,info],i)=>`
+    <div class="top3-item">
+      <div class="top3-rank">${i+1}</div>
+      <div class="top3-body">
+        <div class="name-cell">${nombre}</div>
+        <div class="top3-bar-bg"><div class="top3-bar-fill" style="width:${(info.litros/maxTop3*100).toFixed(0)}%"></div></div>
+      </div>
+      <div style="text-align:right;">
+        <div class="top3-val">${fmtNum(info.litros,1)} L</div>
+        <div class="sub-cell">${fmtCLP(info.valor)}</div>
+      </div>
+    </div>
+  `).join('') : '<div class="empty-state">No hay cargas en el período seleccionado.</div>';
+
+  return `
+  ${renderFiltros()}
+  <div class="metric-grid">
+    <div class="metric">
+      <div class="label">Total cargado</div>
+      <div class="value">${fmtNum(totalLitros,1)}<small> L</small></div>
+    </div>
+    <div class="metric">
+      <div class="label">Costo total</div>
+      <div class="value">${fmtCLP(totalValor)}</div>
+    </div>
+    <div class="metric">
+      <div class="label">Rendimiento prom.</div>
+      <div class="value">${promRend!==null?fmtNum(promRend,2):'-'}<small> L/h</small></div>
+    </div>
+    <div class="metric">
+      <div class="label">N° de cargas</div>
+      <div class="value">${fmtInt(cargas.length)}</div>
+    </div>
+  </div>
+  <div class="card">
+    <h2 class="section-title">Top 3 grúas que más consumen</h2>
+    <div class="top3-list">${top3Html}</div>
+  </div>
+  <div class="card">
+    <h2 class="section-title">Mayor consumo del período</h2>
+    <table class="report">
+      <tr><td>Equipo</td><td class="num name-cell">${topEquipo ? topEquipo[0] : '-'}</td></tr>
+      <tr><td>Litros</td><td class="num">${topEquipo ? fmtNum(topEquipo[1],1)+' L' : '-'}</td></tr>
+      <tr><td>Operador</td><td class="num name-cell">${topOperador ? topOperador[0] : '-'}</td></tr>
+      <tr><td>Litros</td><td class="num">${topOperador ? fmtNum(topOperador[1],1)+' L' : '-'}</td></tr>
+    </table>
+  </div>
+  `;
+}
+
+function renderPorGrua(){
+  const cargas = filteredCargas();
+  const porEquipo = {};
+  cargas.forEach(c=>{
+    if(!porEquipo[c.equipoId]) porEquipo[c.equipoId] = {id:c.equipoId, nombre:c.equipoNombre, litros:0, valor:0, horas:0, n:0, rendSum:0, rendN:0};
+    const e = porEquipo[c.equipoId];
+    e.litros += c.litros;
+    e.valor += c.valorizado;
+    e.n += 1;
+    if(Number(c.horasTranscurridas) > 0) e.horas += c.horasTranscurridas;
+    if(Number(c.litrosPorHora) > 0){ e.rendSum += c.litrosPorHora; e.rendN += 1; }
+  });
+
+  const todos = Object.values(porEquipo).sort((a,b)=>b.litros-a.litros);
+  // Separar equipos con y sin horómetro
+  const conHoro = todos.filter(e=>equipoTieneHorometro(e.id));
+  const sinHoro = todos.filter(e=>!equipoTieneHorometro(e.id));
+  const maxLitros = conHoro.length ? conHoro[0].litros : (todos.length ? todos[0].litros : 1);
+
+  if(todos.length===0){
+    return `${renderFiltros()}<div class="card"><div class="empty-state">No hay cargas en el período seleccionado.</div></div>`;
+  }
+
+  const makeRows = (arr) => arr.map(e=>`
+    <tr>
+      <td>
+        <div class="name-cell">${e.nombre}</div>
+        <div class="sub-cell">${fmtInt(e.n)} cargas · ${e.horas>0?fmtNum(e.horas,1)+' h trabajadas':''}</div>
+        <div class="rank-bar" style="width:${(e.litros/maxLitros*100).toFixed(0)}%"></div>
+      </td>
+      <td class="num">
+        ${fmtNum(e.litros,1)} L<br>
+        <span class="sub-cell">${e.rendN>0?fmtNum(e.rendSum/e.rendN,2)+' L/h':'-'}</span><br>
+        <span class="sub-cell">${fmtCLP(e.valor)}</span>
+      </td>
+    </tr>
+  `).join('');
+
+  const sinHoroSection = sinHoro.length ? `
+  <div class="card">
+    <h2 class="section-title">Sin horómetro (calefactores / préstamos)</h2>
+    <table class="report">
+      <tr><th>Equipo</th><th class="num">Litros · Costo</th></tr>
+      ${makeRows(sinHoro)}
+    </table>
+  </div>` : '';
+
+  return `
+  ${renderFiltros()}
+  <div class="card">
+    <h2 class="section-title">Ranking grúas y equipos con horómetro</h2>
+    <table class="report">
+      <tr><th>Equipo</th><th class="num">Litros · L/h · Costo</th></tr>
+      ${conHoro.length ? makeRows(conHoro) : '<tr><td colspan="2"><div class="empty-state">Sin cargas en el período.</div></td></tr>'}
+    </table>
+  </div>
+  ${sinHoroSection}
+  `;
+}
+
+function renderPorOperador(){
+  const cargas = filteredCargas();
+  const porOp = {};
+  cargas.forEach(c=>{
+    if(!porOp[c.operador]) porOp[c.operador] = {litros:0, valor:0, n:0, horas:0, rendSum:0, rendN:0, equipos:new Set()};
+    const o = porOp[c.operador];
+    o.litros += c.litros;
+    o.valor += c.valorizado;
+    o.n += 1;
+    o.equipos.add(c.equipoNombre);
+    if(Number(c.horasTranscurridas) > 0) o.horas += c.horasTranscurridas;
+    if(Number(c.litrosPorHora) > 0){ o.rendSum += c.litrosPorHora; o.rendN += 1; }
+  });
+  const todos = Object.entries(porOp).map(([nombre,o])=>({nombre, ...o})).sort((a,b)=>b.litros-a.litros);
+  const arr = todos.filter(o=>!operadorEsGenerico(o.nombre));
+  const genericos = todos.filter(o=>operadorEsGenerico(o.nombre));
+  const maxLitros = arr.length ? arr[0].litros : (todos.length ? todos[0].litros : 1);
+
+  if(todos.length===0){
+    return `${renderFiltros()}<div class="card"><div class="empty-state">No hay cargas en el período seleccionado.</div></div>`;
+  }
+
+  const makeOpRows = (list) => list.map(o=>`
+    <tr>
+      <td>
+        <div class="name-cell">${o.nombre}</div>
+        <div class="sub-cell">${fmtInt(o.n)} cargas · ${o.equipos.size} equipo(s)${o.horas>0?' · '+fmtNum(o.horas,1)+' h':''}</div>
+        <div class="rank-bar" style="width:${(o.litros/maxLitros*100).toFixed(0)}%"></div>
+      </td>
+      <td class="num">
+        ${fmtNum(o.litros,1)} L<br>
+        <span class="sub-cell">${o.rendN>0?fmtNum(o.rendSum/o.rendN,2)+' L/h':'-'}</span><br>
+        <span class="sub-cell">${fmtCLP(o.valor)}</span>
+      </td>
+    </tr>
+  `).join('');
+
+  const genericosSection = genericos.length ? `
+  <div class="card">
+    <h2 class="section-title">Operadores genéricos / sin asignar</h2>
+    <table class="report">
+      <tr><th>Operador</th><th class="num">Litros · Costo</th></tr>
+      ${makeOpRows(genericos)}
+    </table>
+  </div>` : '';
+
+  return `
+  ${renderFiltros()}
+  <div class="card">
+    <h2 class="section-title">Consumo por operador</h2>
+    <table class="report">
+      <tr><th>Operador</th><th class="num">Litros · L/h · Costo</th></tr>
+      ${arr.length ? makeOpRows(arr) : '<tr><td colspan="2"><div class="empty-state">Sin cargas en el período.</div></td></tr>'}
+    </table>
+  </div>
+  ${genericosSection}
+  `;
+}
+
+/* =========================================================
+   GERENCIA: COMPARATIVO ANUAL (gráfico barras + curva)
+   ========================================================= */
+function consumoMensualPorAnio(anio){
+  // 12 valores (enero..diciembre), combinando histórico cargado de planilla + cargas registradas en la app
+  const out = new Array(12).fill(0);
+  const histAnio = STATE.historico[String(anio)] || {};
+  for(let m=1;m<=12;m++){
+    out[m-1] = histAnio[String(m)] || 0;
+  }
+  // sumar cargas registradas directamente en la app para ese año
+  STATE.cargas.forEach(c=>{
+    const d = new Date(c.fecha);
+    if(d.getFullYear()===anio){
+      out[d.getMonth()] += c.litros;
+    }
+  });
+  return out;
+}
+
+function renderComparativoAnual(){
+  const anioActual = new Date().getFullYear();
+  const anios = [anioActual-2, anioActual-1, anioActual];
+  const datasets = anios.map(a=>({anio:a, data:consumoMensualPorAnio(a)}));
+
+  const totales = datasets.map(d=>({anio:d.anio, total:d.data.reduce((s,v)=>s+v,0)}));
+
+  return `
+  <div class="metric-grid">
+    ${totales.map(t=>`
+      <div class="metric">
+        <div class="label">Total ${t.anio}</div>
+        <div class="value">${fmtNum(t.total,1)}<small> L</small></div>
+        <div class="sub-cell" style="margin-top:4px;">${fmtCLP(t.total*STATE.precioDiesel)} (a precio actual)</div>
+      </div>
+    `).join('')}
+  </div>
+  <div class="card">
+    <h2 class="section-title">Consumo mensual: ${anios.join(' vs ')}</h2>
+    <div class="chart-wrap" style="height:280px;">
+      <canvas id="chart-comparativo" role="img" aria-label="Gráfico de barras y línea comparando el consumo mensual de diésel en litros para ${anios.join(', ')}">
+        Consumo mensual de diésel (litros) por año: ${datasets.map(d=>`${d.anio}: ${d.data.map((v,i)=>MESES[i]+'='+fmtNum(v,0)).join(', ')}`).join(' | ')}
+      </canvas>
+    </div>
+  </div>
+  <div class="hint" style="margin-top:-6px;">El año en curso muestra solo los meses con datos registrados. Datos de 2024-2025 provienen del registro histórico en papel. El valor en pesos es estimado usando el precio actual del diésel configurado en Ajustes.</div>
+  `;
+}
+
+function drawComparativoChart(){
+  const canvas = document.getElementById('chart-comparativo');
+  if(!canvas || typeof Chart==='undefined') return;
+  if(window._comparativoChart){ window._comparativoChart.destroy(); }
+
+  const anioActual = new Date().getFullYear();
+  const anios = [anioActual-2, anioActual-1, anioActual];
+  const colores = ['#5b6b5e','#3f8a4c','#e8a33d']; // gris-verde, verde, ámbar (año actual destacado)
+  const datasets = anios.map((a,i)=>{
+    const data = consumoMensualPorAnio(a);
+    const esActual = i===anios.length-1;
+    return {
+      label: String(a),
+      data: data.map(v=>v>0?Math.round(v*10)/10:null),
+      type: esActual ? 'line' : 'bar',
+      backgroundColor: colores[i],
+      borderColor: colores[i],
+      borderWidth: esActual ? 2.5 : 0,
+      borderRadius: 4,
+      tension: 0.3,
+      fill: false,
+      spanGaps: true,
+      pointRadius: esActual ? 3 : 0,
+      pointBackgroundColor: colores[i],
+      order: esActual ? 0 : 1,
+    };
+  });
+
+  window._comparativoChart = new Chart(canvas, {
+    data: { labels: MESES, datasets },
+    options: {
+      responsive: true,
+      maintainAspectRatio: false,
+      interaction: {mode:'index', intersect:false},
+      plugins: {
+        legend: { display:false },
+        tooltip: {
+          callbacks:{
+            label: (ctx)=> `${ctx.dataset.label}: ${ctx.parsed.y!==null?ctx.parsed.y.toLocaleString('es-CL',{maximumFractionDigits:1}):'-'} L`
+          }
+        }
+      },
+      scales: {
+        y: {
+          beginAtZero: true,
+          ticks: { color:'#9aa39a', callback:(v)=>v.toLocaleString('es-CL') },
+          grid: { color:'rgba(154,163,154,0.12)' }
+        },
+        x: {
+          ticks: { color:'#9aa39a', autoSkip:false },
+          grid: { display:false }
+        }
+      }
+    }
+  });
+}
+
+/* =========================================================
+   GERENCIA: HISTORIAL COMPLETO CON OPCIÓN DE ELIMINAR
+   ========================================================= */
+function renderHistorialGerencia(){
+  const ordenadas = [...STATE.cargas].sort((a,b)=> new Date(b.fecha) - new Date(a.fecha));
+  if(ordenadas.length===0){
+    return `<div class="card"><div class="empty-state">No hay cargas registradas.</div></div>`;
+  }
+  const items = ordenadas.map(c=>`
+    <div class="master-item">
+      <div class="info" style="flex:1;">
+        <div class="name">${c.equipoNombre} · ${fmtNum(c.litros,1)} L</div>
+        <div class="sub">${c.operador} · ${fmtDateTime(c.fecha)}${c.horometro!=null?' · '+fmtNum(c.horometro,1)+' h':''}${c.litrosPorHora?` · ${fmtNum(c.litrosPorHora,2)} L/h`:''}</div>
+        <div class="sub" style="color:var(--text-dim);">Carga: ${c.operadorCarga||'-'} · ${fmtCLP(c.valorizado||0)}</div>
+      </div>
+      <div class="master-actions">
+        <div class="icon-btn danger" onclick="confirmarEliminarCarga('${c.id}')" title="Eliminar">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="3 6 5 6 21 6"/><path d="M19 6l-1 14a2 2 0 0 1-2 2H8a2 2 0 0 1-2-2L5 6"/><path d="M10 11v6"/><path d="M14 11v6"/><path d="M9 6V4h6v2"/></svg>
+        </div>
+      </div>
+    </div>
+  `).join('');
+  return `
+  <div class="hint" style="margin-bottom:12px;">Eliminar una carga también revierte el descuento correspondiente del saldo del estanque.</div>
+  <div class="card">${items}</div>
+  `;
+}
+
+async function confirmarEliminarCarga(id){
+  const carga = STATE.cargas.find(c=>c.id===id);
+  if(!carga) return;
+  if(!confirm(`¿Eliminar esta carga?\n\n${carga.equipoNombre} · ${fmtNum(carga.litros,1)} L · ${fmtDateTime(carga.fecha)}\n\nEsto revertirá el descuento del estanque.`)) return;
+
+  if(apiConfigurada()){
+    try{ await apiPost('eliminarCarga', {id}); }
+    catch(e){ showToast('No se pudo eliminar en el servidor: ' + e.message, true); return; }
+  }
+
+  // Quitar la carga del state
+  STATE.cargas = STATE.cargas.filter(c=>c.id!==id);
+
+  // Revertir en el estanque: quitar el movimiento de salida asociado y recalcular saldos
+  STATE.movsEstanque = STATE.movsEstanque.filter(m=>
+    !(m.tipo==='salida' && Math.abs(m.litros)===carga.litros &&
+      Math.abs(new Date(m.fecha)-new Date(carga.fecha)) < 5000)
+  );
+  recalcularSaldosEstanque();
+
+  showToast(`Carga eliminada. Saldo actualizado.`);
+  render();
+}
+
+function recalcularSaldosEstanque(){
+  // Recalcula saldoResultante de todos los movimientos en orden cronológico
+  const sorted = STATE.movsEstanque.sort((a,b)=>new Date(a.fecha)-new Date(b.fecha));
+  let saldo = 0;
+  sorted.forEach(m=>{ saldo += m.litros; m.saldoResultante = Math.round(saldo*10)/10; });
+  STATE.movsEstanque = sorted;
+}
+
+async function confirmarEliminarMovEstanque(id){
+  const mov = STATE.movsEstanque.find(m=>m.id===id);
+  if(!mov) return;
+  const tipo = mov.tipo==='ingreso' ? 'reabastecimiento' : 'ajuste';
+  if(!confirm(`¿Eliminar este ${tipo}?\n\n${nombreMovEstanque(mov)} · ${mov.litros>0?'+':''}${fmtNum(mov.litros,1)} L · ${fmtDateTime(mov.fecha)}\n${mov.observacion||''}\n\nEl saldo del estanque se recalculará.`)) return;
+
+  if(apiConfigurada()){
+    try{ await apiPost('eliminarMovEstanque', {id}); }
+    catch(e){ showToast('No se pudo eliminar en el servidor: ' + e.message, true); return; }
+  }
+
+  STATE.movsEstanque = STATE.movsEstanque.filter(m=>m.id!==id);
+  recalcularSaldosEstanque();
+  showToast(`Movimiento eliminado. Saldo actualizado.`);
+  render();
+}
+
+function renderEstanqueGerencia(){
+  const saldo = saldoEstanque();
+  const movs = [...STATE.movsEstanque].sort((a,b)=> new Date(b.fecha) - new Date(a.fecha)).slice(0,30);
+  const totalIngresos = STATE.movsEstanque.filter(m=>m.tipo==='ingreso').reduce((s,m)=>s+m.litros,0);
+  const totalSalidas = STATE.movsEstanque.filter(m=>m.tipo==='salida').reduce((s,m)=>s+Math.abs(m.litros),0);
+  const totalAjustes = STATE.movsEstanque.filter(m=>m.tipo==='ajuste').reduce((s,m)=>s+m.litros,0);
+
+  const rows = movs.map(m=>`
+    <tr>
+      <td>
+        <div class="name-cell">${nombreMovEstanque(m)}</div>
+        <div class="sub-cell">${fmtDateTime(m.fecha)}${m.observacion?' · '+m.observacion:''}</div>
+      </td>
+      <td class="num" style="color:${m.litros>0?'var(--accent2)':(m.tipo==='ajuste'?'var(--danger)':'var(--text)')};white-space:nowrap;">
+        ${m.litros>0?'+':''}${fmtNum(m.litros,1)} L
+        ${(m.tipo==='ajuste'||m.tipo==='ingreso') ? `<div onclick="confirmarEliminarMovEstanque('${m.id}')" style="display:inline-flex;align-items:center;justify-content:center;width:26px;height:26px;border-radius:7px;border:1px solid var(--line);background:var(--panel2);cursor:pointer;margin-left:6px;color:var(--danger);vertical-align:middle;">
+          <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="3 6 5 6 21 6"/><path d="M19 6l-1 14a2 2 0 0 1-2 2H8a2 2 0 0 1-2-2L5 6"/><path d="M10 11v6"/><path d="M14 11v6"/><path d="M9 6V4h6v2"/></svg>
+        </div>` : ''}
+      </td>
+    </tr>
+  `).join('');
+
+  return `
+  <div class="metric-grid">
+    <div class="metric">
+      <div class="label">Saldo actual</div>
+      <div class="value">${fmtNum(saldo,1)}<small> L</small></div>
+    </div>
+    <div class="metric">
+      <div class="label">Total ingresado</div>
+      <div class="value">${fmtNum(totalIngresos,1)}<small> L</small></div>
+    </div>
+    <div class="metric">
+      <div class="label">Total entregado</div>
+      <div class="value">${fmtNum(totalSalidas,1)}<small> L</small></div>
+    </div>
+    <div class="metric">
+      <div class="label">Ajustes netos</div>
+      <div class="value">${totalAjustes>=0?'+':''}${fmtNum(totalAjustes,1)}<small> L</small></div>
+    </div>
+  </div>
+  <div class="card">
+    <h2 class="section-title">Movimientos del estanque</h2>
+    <table class="report">${rows}</table>
+  </div>
+  `;
+}
+
+/* =========================================================
+   GERENCIA: MAESTROS (equipos, operadores)
+   ========================================================= */
+function renderMaestros(){
+  const mostrar = STATE.mostrarInactivos;
+
+  // Helper para generar filas filtrando por activo
+  function equipoRow(e){
+    if(!mostrar && !e.activo) return '';
+    const sinH = e.tieneHorometro === false;
+    return `
+    <div class="master-item">
+      <div class="info">
+        <div class="name">${e.nombre} ${!e.activo?'<span class="badge inactive">Inactivo</span>':''} ${sinH?'<span class="badge">Sin horómetro</span>':''}</div>
+        <div class="sub">${e.marca} · ${e.tipo}</div>
+      </div>
+      <div class="master-actions">
+        <div class="icon-btn" onclick="abrirModalEquipo('${e.id}')" title="Editar">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"/><path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"/></svg>
+        </div>
+        <div class="icon-btn ${e.activo?'danger':''}" onclick="toggleEquipoActivo('${e.id}')" title="${e.activo?'Desactivar':'Activar'}">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">${e.activo?'<circle cx="12" cy="12" r="10"/><line x1="4.93" y1="4.93" x2="19.07" y2="19.07"/>':'<polyline points="20 6 9 17 4 12"/>'}</svg>
+        </div>
+      </div>
+    </div>`;
+  }
+
+  function operadorRow(o, grupo){
+    if(!mostrar && !o.activo) return '';
+    const sub = grupo==='maquina' ? 'Operador de equipo' : 'Operador de mantención';
+    const esGen = grupo==='maquina' && o.esGenerico;
+    return `
+    <div class="master-item">
+      <div class="info">
+        <div class="name">${o.nombre} ${!o.activo?'<span class="badge inactive">Inactivo</span>':''} ${esGen?'<span class="badge">Genérico</span>':''}</div>
+        <div class="sub">${sub}</div>
+      </div>
+      <div class="master-actions">
+        <div class="icon-btn" onclick="abrirModalOperador('${grupo}','${o.id}')" title="Editar">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"/><path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"/></svg>
+        </div>
+        <div class="icon-btn ${o.activo?'danger':''}" onclick="toggleOperadorActivo('${grupo}','${o.id}')" title="${o.activo?'Desactivar':'Activar'}">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">${o.activo?'<circle cx="12" cy="12" r="10"/><line x1="4.93" y1="4.93" x2="19.07" y2="19.07"/>':'<polyline points="20 6 9 17 4 12"/>'}</svg>
+        </div>
+      </div>
+    </div>`;
+  }
+
+  const equiposRows = STATE.equipos.map(e=>equipoRow(e)).join('') || '<div class="empty-state">Sin equipos registrados.</div>';
+  const opMaqRows = STATE.operadoresMaquina.map(o=>operadorRow(o,'maquina')).join('') || '<div class="empty-state">Sin operadores registrados.</div>';
+  const opCargaRows = STATE.operadoresCarga.map(o=>operadorRow(o,'carga')).join('') || '<div class="empty-state">Sin operadores registrados.</div>';
+
+  // Contar inactivos
+  const nInactivos = STATE.equipos.filter(e=>!e.activo).length +
+    STATE.operadoresMaquina.filter(o=>!o.activo).length +
+    STATE.operadoresCarga.filter(o=>!o.activo).length;
+
+  const toggleBtn = nInactivos > 0 ? `
+    <div style="display:flex;justify-content:flex-end;margin-bottom:14px;">
+      <button onclick="STATE.mostrarInactivos=!STATE.mostrarInactivos;render()" style="
+        background:${mostrar?'var(--panel2)':'transparent'};
+        border:1px solid var(--line);color:${mostrar?'var(--text)':'var(--text-dim)'};
+        font-size:12px;font-weight:600;padding:7px 14px;border-radius:999px;cursor:pointer;">
+        ${mostrar ? '✕ Ocultar inactivos' : `Mostrar inactivos (${nInactivos})`}
+      </button>
+    </div>` : '';
+
+  return `
+  ${toggleBtn}
+  <div class="card">
+    <h2 class="section-title">Grúas y máquinas</h2>
+    ${equiposRows}
+    <button class="btn-secondary" onclick="abrirModalEquipo(null)">+ Agregar equipo</button>
+  </div>
+  <div class="card">
+    <h2 class="section-title">Operadores de equipos</h2>
+    ${opMaqRows}
+    <button class="btn-secondary" onclick="abrirModalOperador('maquina',null)">+ Agregar operador</button>
+  </div>
+  <div class="card">
+    <h2 class="section-title">Operadores que cargan combustible</h2>
+    ${opCargaRows}
+    <button class="btn-secondary" onclick="abrirModalOperador('carga',null)">+ Agregar operador</button>
+  </div>
+  <div class="card">
+    <h2 class="section-title">Ajuste de estanque</h2>
+    <div class="hint" style="margin-bottom:10px;">Saldo actual: <strong>${fmtNum(saldoEstanque(),1)} L</strong>. Usa esto para corregir el saldo por evaporación, mermas, o para cuadrar el estanque al partir con la aplicación. Queda registrado en el historial de movimientos.</div>
+    <div class="field">
+      <label>Tipo de ajuste</label>
+      <select id="f-ajuste-tipo">
+        <option value="resta">Restar litros (merma / evaporación)</option>
+        <option value="suma">Sumar litros (corrección al alza)</option>
+        <option value="fijar">Fijar saldo a un valor exacto</option>
+      </select>
+    </div>
+    <div class="field" id="f-ajuste-campo">
+      <label id="f-ajuste-label">Litros a restar</label>
+      <input type="number" id="f-ajuste-valor" inputmode="decimal" placeholder="0.0" step="0.1" min="0">
+    </div>
+    <div class="field">
+      <label>Motivo (obligatorio)</label>
+      <input type="text" id="f-ajuste-obs" placeholder="Ej: Evaporación mensual, cuadratura inicial...">
+    </div>
+    <div id="f-ajuste-preview" class="hint"></div>
+    <button class="btn-primary" onclick="aplicarAjusteEstanque()">Aplicar ajuste</button>
+  </div>
+  `;
+}
+
+/* --- Modal: Equipos --- */
+function abrirModalEquipo(id){
+  const equipo = id ? STATE.equipos.find(e=>e.id===id) : {id:'', nombre:'', marca:'', tipo:'Propia', tieneHorometro:true, activo:true};
+  const tieneH = equipo.tieneHorometro !== false; // default true si no existe
+  const modalRoot = document.getElementById('modal-root');
+  modalRoot.innerHTML = `
+  <div class="modal-overlay" onclick="if(event.target===this) cerrarModal()">
+    <div class="modal">
+      <h3>${id ? 'Editar equipo' : 'Nuevo equipo'}</h3>
+      <div class="field">
+        <label>Nombre / identificador</label>
+        <input type="text" id="m-nombre" value="${equipo.nombre}" placeholder="Ej: Grúa 6">
+      </div>
+      <div class="field">
+        <label>Marca</label>
+        <input type="text" id="m-marca" value="${equipo.marca}" placeholder="Ej: Heli">
+      </div>
+      <div class="field">
+        <label>Tipo</label>
+        <select id="m-tipo">
+          <option value="Propia" ${equipo.tipo==='Propia'?'selected':''}>Propia</option>
+          <option value="Arriendo" ${equipo.tipo==='Arriendo'?'selected':''}>Arriendo</option>
+        </select>
+      </div>
+      <div class="field">
+        <label style="display:flex;align-items:center;gap:8px;cursor:pointer;font-size:13px;">
+          <input type="checkbox" id="m-tiene-horometro" ${tieneH?'checked':''} style="width:18px;height:18px;cursor:pointer;">
+          Tiene horómetro (grúas, tractores)
+        </label>
+        <div class="hint">Desmarca para calefactores, préstamos u otros equipos sin horómetro. Estos no aparecerán en el ranking de consumo.</div>
+      </div>
+      <button class="btn-primary" onclick="guardarEquipo('${id||''}')">Guardar</button>
+      <button class="btn-secondary" onclick="cerrarModal()">Cancelar</button>
+    </div>
+  </div>
+  `;
+}
+async function guardarEquipo(id){
+  const nombre = document.getElementById('m-nombre').value.trim();
+  const marca = document.getElementById('m-marca').value.trim();
+  const tipo = document.getElementById('m-tipo').value;
+  const tieneHorometro = document.getElementById('m-tiene-horometro').checked;
+  if(!nombre){ showToast('Ingresa un nombre', true); return; }
+
+  if(apiConfigurada()){
+    try{
+      const res = await apiPost('saveEquipo', {id: id || null, nombre, marca: marca||'-', tipo, tieneHorometro});
+      if(!id) id = res.id;
+    }catch(e){
+      showToast('No se pudo guardar en el servidor: ' + e.message, true);
+      return;
+    }
+  }
+
+  if(id && STATE.equipos.find(e=>e.id===id)){
+    const eq = STATE.equipos.find(e=>e.id===id);
+    eq.nombre = nombre; eq.marca = marca || '-'; eq.tipo = tipo; eq.tieneHorometro = tieneHorometro;
+  } else {
+    STATE.equipos.push({id: id || cryptoId(), nombre, marca: marca||'-', tipo, tieneHorometro, activo:true});
+  }
+  cerrarModal();
+  showToast('Equipo guardado');
+  render();
+}
+async function toggleEquipoActivo(id){
+  const eq = STATE.equipos.find(e=>e.id===id);
+  if(apiConfigurada()){
+    try{ await apiPost('toggleEquipo', {id}); }
+    catch(e){ showToast('No se pudo actualizar en el servidor: ' + e.message, true); return; }
+  }
+  eq.activo = !eq.activo;
+  showToast(eq.activo ? 'Equipo activado' : 'Equipo desactivado');
+  render();
+}
+
+/* --- Modal: Operadores (maquina / carga) --- */
+function abrirModalOperador(grupo, id){
+  const lista = grupo==='maquina' ? STATE.operadoresMaquina : STATE.operadoresCarga;
+  const op = id ? lista.find(o=>o.id===id) : {id:'', nombre:'', activo:true, esGenerico:false};
+  const titulo = grupo==='maquina' ? 'operador de equipo' : 'operador de mantención';
+  const modalRoot = document.getElementById('modal-root');
+  modalRoot.innerHTML = `
+  <div class="modal-overlay" onclick="if(event.target===this) cerrarModal()">
+    <div class="modal">
+      <h3>${id ? 'Editar' : 'Nuevo'} ${titulo}</h3>
+      <div class="field">
+        <label>Nombre completo</label>
+        <input type="text" id="m-nombre-op" value="${op.nombre}" placeholder="Ej: Juan Pérez">
+      </div>
+      ${grupo==='maquina' ? `
+      <div class="field">
+        <label style="display:flex;align-items:center;gap:8px;cursor:pointer;font-size:13px;">
+          <input type="checkbox" id="m-es-generico" ${op.esGenerico?'checked':''} style="width:20px;height:20px;cursor:pointer;">
+          Operador genérico (no aparece en ranking de estadísticas)
+        </label>
+        <div class="hint">Usa esto para "Generico", "Sin asignar" u otros comodines.</div>
+      </div>` : ''}
+      <button class="btn-primary" onclick="guardarOperador('${grupo}','${id||''}')">Guardar</button>
+      <button class="btn-secondary" onclick="cerrarModal()">Cancelar</button>
+    </div>
+  </div>
+  `;
+}
+async function guardarOperador(grupo, id){
+  const nombre = document.getElementById('m-nombre-op').value.trim();
+  if(!nombre){ showToast('Ingresa un nombre', true); return; }
+  const esGenerico = grupo==='maquina' && document.getElementById('m-es-generico') ? document.getElementById('m-es-generico').checked : false;
+  const lista = grupo==='maquina' ? STATE.operadoresMaquina : STATE.operadoresCarga;
+
+  if(apiConfigurada()){
+    try{
+      const res = await apiPost('saveOperador', {grupo, id: id || null, nombre, esGenerico});
+      if(!id) id = res.id;
+    }catch(e){
+      showToast('No se pudo guardar en el servidor: ' + e.message, true);
+      return;
+    }
+  }
+
+  if(id && lista.find(o=>o.id===id)){
+    const op = lista.find(o=>o.id===id);
+    op.nombre = nombre;
+    if(grupo==='maquina') op.esGenerico = esGenerico;
+  } else {
+    lista.push({id: id || cryptoId(), nombre, activo:true, esGenerico: grupo==='maquina' ? esGenerico : false});
+  }
+  cerrarModal();
+  showToast('Operador guardado');
+  render();
+}
+async function toggleOperadorActivo(grupo, id){
+  const lista = grupo==='maquina' ? STATE.operadoresMaquina : STATE.operadoresCarga;
+  const op = lista.find(o=>o.id===id);
+  if(apiConfigurada()){
+    try{ await apiPost('toggleOperador', {grupo, id}); }
+    catch(e){ showToast('No se pudo actualizar en el servidor: ' + e.message, true); return; }
+  }
+  op.activo = !op.activo;
+  showToast(op.activo ? 'Operador activado' : 'Operador desactivado');
+  render();
+}
+function cerrarModal(){
+  document.getElementById('modal-root').innerHTML = '';
+}
+
+async function aplicarAjusteEstanque(){
+  const tipo = document.getElementById('f-ajuste-tipo').value;
+  const val = parseFloat(document.getElementById('f-ajuste-valor').value);
+  const obs = document.getElementById('f-ajuste-obs').value.trim();
+
+  if(isNaN(val)){ showToast('Ingresa un valor numérico', true); return; }
+  if(!obs){ showToast('Indica el motivo del ajuste', true); return; }
+
+  const saldoActual = saldoEstanque();
+  let diferencia;
+  if(tipo==='resta') diferencia = -Math.abs(val);
+  else if(tipo==='suma') diferencia = Math.abs(val);
+  else diferencia = val - saldoActual; // "fijar"
+
+  if(diferencia === 0){ showToast('El ajuste no genera ningún cambio en el saldo', true); return; }
+
+  const nuevoSaldo = saldoActual + diferencia;
+  if(nuevoSaldo < 0){
+    if(!confirm(`Este ajuste dejaría el saldo en ${fmtNum(nuevoSaldo,1)} L (negativo). ¿Continuar igualmente?`)) return;
+  }
+
+  const fecha = new Date().toISOString();
+  const observacionFinal = `${obs} (${diferencia>=0?'+':''}${fmtNum(diferencia,1)} L)`;
+
+  if(apiConfigurada()){
+    try{
+      await apiPost('ajusteEstanque', { fecha, litros: diferencia, observacion: observacionFinal });
+    }catch(e){
+      showToast('No se pudo guardar en el servidor: ' + e.message, true);
+      return;
+    }
+  }
+
+  STATE.movsEstanque.push({
+    id: cryptoId(),
+    fecha,
+    litros: diferencia,
+    tipo: "ajuste",
+    observacion: observacionFinal,
+    saldoResultante: nuevoSaldo
+  });
+
+  showToast(`Ajuste aplicado. Nuevo saldo: ${fmtNum(nuevoSaldo,1)} L`);
+  render();
+}
+
+function renderAjustes(){
+  const conexion = STATE.modoDemo
+    ? `<div class="alert-box"><i class="ti ti-plug-connected-x" style="font-size:15px"></i> ${apiConfigurada() ? 'No se pudo conectar al backend (Google Sheets). Mostrando datos de respaldo.' : 'Backend no configurado: los datos no se están guardando en Google Sheets (modo demo local).'}</div>`
+    : `<div class="hint" style="margin-bottom:14px;color:var(--accent2);"><i class="ti ti-plug-connected" style="font-size:13px"></i> Conectado a Google Sheets.</div>`;
+
+  return `
+  ${conexion}
+  <div class="card">
+    <h2 class="section-title">Precio del diésel</h2>
+    <div class="field">
+      <label>Precio actual por litro (CLP)</label>
+      <input type="number" id="f-precio" value="${STATE.precioDiesel}" step="1" min="0">
+    </div>
+    <button class="btn-primary" onclick="actualizarPrecio()">Guardar precio</button>
+    <div class="hint">Este precio se usa para calcular el valor de las nuevas cargas y los totales en pesos de los reportes. Las cargas anteriores mantienen el precio con el que fueron registradas.</div>
+  </div>
+  <div class="card">
+    <h2 class="section-title">Alerta de estanque bajo</h2>
+    <div class="field">
+      <label>Avisar por correo cuando el saldo llegue a (litros)</label>
+      <input type="number" id="f-umbral" value="${STATE.config.umbralAlertaLitros}" step="1" min="0">
+    </div>
+    <div class="field">
+      <label>Correos de aviso (separados por coma)</label>
+      <input type="text" id="f-emails" value="${STATE.config.emailsAlerta}" placeholder="correo1@empresa.com, correo2@empresa.com">
+    </div>
+    <button class="btn-primary" onclick="actualizarAlerta()">Guardar alerta</button>
+    <div class="hint">Se envía un correo automático apenas el saldo del estanque cae al umbral indicado o por debajo, tras registrar una carga. No se reenvía mientras el saldo siga bajo; se vuelve a avisar solo después de un reabastecimiento que vuelva a hacerlo caer.</div>
+  </div>
+  <div class="card">
+    <h2 class="section-title">Acceso</h2>
+    <button class="btn-secondary" onclick="cerrarSesion()">Cerrar sesión de gerencia</button>
+  </div>
+  `;
+}
+
+function attachGerenciaEvents(){
+  const fy = document.getElementById('filter-year');
+  const fm = document.getElementById('filter-month');
+  const fe = document.getElementById('filter-equipo');
+  const fo = document.getElementById('filter-operador');
+  if(fy) fy.addEventListener('change', e=>{
+    STATE.filterYear = e.target.value==='todos' ? 'todos' : parseInt(e.target.value);
+    if(STATE.filterYear === 'todos') STATE.filterMonth = 0;
+    render();
+  });
+  if(fm) fm.addEventListener('change', e=>{ STATE.filterMonth = parseInt(e.target.value); render(); });
+  if(fe) fe.addEventListener('change', e=>{ STATE.filterEquipo = e.target.value; render(); });
+  if(fo) fo.addEventListener('change', e=>{ STATE.filterOperador = e.target.value; render(); });
+
+  const at = document.getElementById('f-ajuste-tipo');
+  const av = document.getElementById('f-ajuste-valor');
+  if(at && av){
+    const updateAjustePreview = ()=>{
+      const label = document.getElementById('f-ajuste-label');
+      const preview = document.getElementById('f-ajuste-preview');
+      const saldo = saldoEstanque();
+      const tipo = at.value;
+      const val = parseFloat(av.value);
+
+      if(tipo==='resta') label.textContent = 'Litros a restar';
+      else if(tipo==='suma') label.textContent = 'Litros a sumar';
+      else label.textContent = 'Saldo correcto (litros)';
+
+      if(isNaN(val)){ preview.textContent=''; return; }
+
+      let nuevoSaldo;
+      if(tipo==='resta') nuevoSaldo = saldo - Math.abs(val);
+      else if(tipo==='suma') nuevoSaldo = saldo + Math.abs(val);
+      else nuevoSaldo = val;
+
+      preview.textContent = `Saldo actual: ${fmtNum(saldo,1)} L → Saldo después del ajuste: ${fmtNum(nuevoSaldo,1)} L`;
+      if(nuevoSaldo < 0) preview.style.color = 'var(--danger)';
+      else preview.style.color = '';
+    };
+    at.addEventListener('change', updateAjustePreview);
+    av.addEventListener('input', updateAjustePreview);
+  }
+}
+
+async function actualizarPrecio(){
+  const val = parseFloat(document.getElementById('f-precio').value);
+  if(isNaN(val) || val<=0){ showToast('Ingresa un precio válido', true); return; }
+  if(apiConfigurada()){
+    try{ await apiPost('savePrecio', {precio: val}); }
+    catch(e){ showToast('No se pudo guardar en el servidor: ' + e.message, true); return; }
+  }
+  STATE.precioDiesel = val;
+  showToast('Precio actualizado');
+}
+async function actualizarAlerta(){
+  const umbral = parseFloat(document.getElementById('f-umbral').value);
+  const emails = document.getElementById('f-emails').value.trim();
+  if(isNaN(umbral) || umbral<0){ showToast('Ingresa un umbral válido', true); return; }
+  if(!emails){ showToast('Ingresa al menos un correo', true); return; }
+  if(apiConfigurada()){
+    try{ await apiPost('saveAlertaConfig', {umbralLitros: umbral, emails}); }
+    catch(e){ showToast('No se pudo guardar en el servidor: ' + e.message, true); return; }
+  }
+  STATE.config.umbralAlertaLitros = umbral;
+  STATE.config.emailsAlerta = emails;
+  showToast('Configuración de alerta actualizada');
+}
+function cerrarSesion(){
+  STATE.gerLoggedIn = false;
+  setMode('operador');
+}
+
+/* =========================================================
+   INIT
+   ========================================================= */
+(async function init(){
+  // Mostrar pantalla de carga mientras conecta al backend
+  const main = document.getElementById('main');
+  main.innerHTML = `
+    <div style="display:flex;flex-direction:column;align-items:center;justify-content:center;min-height:60vh;gap:16px;text-align:center;padding:20px;">
+      <div style="font-size:36px;">⛽</div>
+      <div style="font-size:16px;font-weight:600;">Cargando datos...</div>
+      <div style="font-size:13px;color:var(--text-dim);">Conectando con Google Sheets</div>
+      <div style="width:48px;height:4px;border-radius:2px;background:var(--line);overflow:hidden;">
+        <div style="width:100%;height:100%;background:var(--accent2);border-radius:2px;animation:loading 1.2s ease-in-out infinite alternate;"></div>
+      </div>
+    </div>
+    <style>@keyframes loading{from{transform:translateX(-100%)}to{transform:translateX(100%)}}</style>
+  `;
+  await loadAll();
+  render();
+})();
+</script>
+</body>
+</html>
